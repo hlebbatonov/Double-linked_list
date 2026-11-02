@@ -6,6 +6,7 @@ Errors DlListPushAfter(dl_list_t* list, int node, elem elem);
 Errors DlListPopAfter(dl_list_t* list, int node, elem* elem);
 Errors DlListVerify(dl_list_t* list);
 Errors DlListDump(dl_list_t* list);
+Errors DlListRemove(dl_list_t* list);
 
 int main()
 {
@@ -19,6 +20,7 @@ int main()
     DlListPushAfter(&list, 1, 1.5);
     DlListPopAfter(&list, 0, &k);
     DlListDump(&list);
+    DlListRemove(&list);
 }
 
 Errors DlListInit(dl_list_t* list, size_t start_num_of_elems)
@@ -149,3 +151,34 @@ Errors DlListDump(dl_list_t* list)
     return OK;
 }
 
+Errors DlListRemove(dl_list_t* list)
+{
+    Errors curr_err = OK;
+    VERIFY_NULL_POINTER(list);
+
+    if (list->capacity >= 1)
+    {
+        if (list->data_arr != NULL)
+            for (int i = 1; i < list->capacity - 1; i++) {list->data_arr[i] = POISON;}
+        else curr_err = ERR_DATA_NULL_POINTER;
+        if (list->next_arr != NULL)
+            for (int i = 1; i < list->capacity - 1; i++) {list->next_arr[i] = POISON;}
+        else curr_err = ERR_NEXT_NULL_POINTER;
+        if (list->prev_arr != NULL)
+            for (int i = 1; i < list->capacity - 1; i++) {list->prev_arr[i] = POISON;}
+        else curr_err = ERR_PREV_NULL_POINTER;
+    }
+    else
+        curr_err = ERR_EMPTY_LIST;
+
+    list->capacity = 0;
+    list->first_free_point = 0;
+    list->num_of_real_elems = 0;
+    free(list->data_arr);
+    free(list->next_arr);
+    free(list->prev_arr);
+    free(list);
+
+    return curr_err;
+
+}

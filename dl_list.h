@@ -16,6 +16,7 @@ enum Errors
     ERR_NULL_POINTER, //error
     ERR_DATA_NULL_POINTER, //error
     ERR_NEXT_NULL_POINTER, //error
+    ERR_PREV_NULL_POINTER,
     ERR_LIST_NULL_POINTER, //error
 
     ERR_ZERO_LENGTH, //error
