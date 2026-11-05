@@ -8,6 +8,7 @@
 #define VERIFY_ERROR(err) do {if (err != OK) return err;} while(0)
 
 #define $(x) #x
+#define PRINTING_SPEC "g"
 
 enum Errors
 {
@@ -36,6 +37,8 @@ enum Errors
     ERR_POP_FROM_EMPTY_LIST,
     ERR_INVALID_INDEX,
     ERR_POP_FICTIVE_ELEM,
+    ERR_FILE_NOT_OPENED,
+    ERR_INDEX_OUT_OF_RANGE,
     ERR_FICTIVE_ELEM_CRASHED
 };
 
@@ -46,10 +49,11 @@ struct dl_list_t
     elem* data_arr;
     int* next_arr;
     int* prev_arr;
-    size_t capacity;
-    size_t num_of_real_elems;
+    int capacity;
+    int num_of_real_elems;
     int first_free_point;
 };
 
-const size_t MAX_CAPACITY = 256;
+
+const int MAX_CAPACITY = 256;
 const elem POISON = 0xBEDA;
