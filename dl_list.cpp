@@ -1,8 +1,8 @@
 #include "dl_list.h"
 #include <stdlib.h>
 
-#define VERIFY_NULL_POINTER(pointer) do           \
-{                                                 \
+#define VERIFY_NULL_POINTER(pointer) do                   \
+{                                                         \
     if (pointer == NULL) return DL_LIST_ERR_NULL_POINTER; \
 } while(0)
 
@@ -10,58 +10,16 @@
 
 #define $(x) #x
 
-DlListErrors DlListInit(dl_list_t* list, int start_num_of_elems);
 DlListErrors DlListPushAfterPhys(dl_list_t* list, int node, dl_list_elem_t elem);
 DlListErrors DlListPopAfterPhys(dl_list_t* list, int node, dl_list_elem_t* elem);
-DlListErrors DlListVerify(dl_list_t* list);
-DlListErrors DlListDump(dl_list_t* list);
-DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename);
-DlListErrors DlListRemove(dl_list_t* list);
-DlListErrors DlListGetIndex(dl_list_t* list, int node, int* index);
 
-DlListErrors DlListPushByIterator(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t elem);
-DlListErrors DlListPopByIterator(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t* elem);
-DlListErrors DlListInitIterator(dl_list_t* list, dl_list_iterator_t* index);
-DlListErrors DlListIteratorGetItem(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t* elem);
-DlListErrors DlListIteratorBegin(dl_list_t* list, dl_list_iterator_t* index);
-DlListErrors DlListIteratorEnd(dl_list_t* list, dl_list_iterator_t* index);
-DlListErrors DlListIteratorNext(dl_list_t* list, dl_list_iterator_t index, dl_list_iterator_t* index_next);
-DlListErrors DlListIteratorPrev(dl_list_t* list, dl_list_iterator_t index, dl_list_iterator_t* index_prev);
-DlListErrors DlListIteratorInc(dl_list_t* list, dl_list_iterator_t* index);
-
-int main()
-{
-    dl_list_t list = {};
-    dl_list_iterator_t it = {};
-    int start_num_of_elems = 16;
-
-    dl_list_elem_t k = 0;
-
-    DlListErrors init_err = DlListInit(&list, start_num_of_elems);
-    DlListErrors init_it_err = DlListInitIterator(&list, &it);
-    DlListIteratorBegin(&list, &it);
-    DlListDump(&list);
-    DlListPushByIterator(&list, it, 2.5);
-    DlListDump(&list);
-    DlListPushByIterator(&list, (dl_list_iterator_t){1}, 1.5);
-    DlListPushByIterator(&list, (dl_list_iterator_t){2}, -0.1);
-    DlListDump(&list);
-
-    DlListGraphDump(&list, "1.txt");
-
-    DlListPopByIterator(&list, (dl_list_iterator_t){1}, &k);
-    DlListDump(&list);
-
-    DlListRemove(&list);
-}
-
-DlListErrors DlListInit(dl_list_t* list, int start_num_of_elems)
+DlListErrors DlListInit(dl_list_t* list, int start_capacity)
 {
     if (list == NULL) return DL_LIST_ERR_NULL_POINTER;
-    if (start_num_of_elems <= 0) return DL_LIST_ERR_EMPTY_LIST;
-    if (start_num_of_elems > MAX_CAPACITY - 1) return DL_LIST_ERR_LENGTH_TOO_BIG;
+    if (start_capacity <= 0) return DL_LIST_ERR_EMPTY_LIST;
+    if (start_capacity > MAX_CAPACITY - 1) return DL_LIST_ERR_LENGTH_TOO_BIG;
 
-    list->capacity = start_num_of_elems + 1;
+    list->capacity = start_capacity + 1;
 
     list->data_arr = (dl_list_elem_t*)calloc((size_t)list->capacity, sizeof(dl_list_elem_t));
     VERIFY_NULL_POINTER(list->data_arr);
@@ -229,6 +187,8 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
     fprintf(dot_file, "digraph List_Dump\n{\n");
     fprintf(dot_file, "rankdir=LR;\n");
     fprintf(dot_file, "splines=true;\n");
+    fprintf(dot_file, "nodesep=1.0;\n");
+    fprintf(dot_file, "ranksep=0.6;\n");
     fprintf(dot_file, "node [shape=record, style=\"filled,rounded\", fontname=\"Arial\", group=1];\n\n");
     //Vertexes
     for (int i = 0; i < list->capacity; i++)
@@ -236,22 +196,15 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
         if (i == 0)
             fprintf(dot_file, "node_%d [fillcolor=\"%s\", label=\"Index: %d | { <prev> prev: %d | data: " "PZ" "| <next> next: %d } \"];\n",
                 i, "#ffce47", i, list->prev_arr[i], list->next_arr[i]);
+        else if (i == list->first_free_point)
+            fprintf(dot_file, "node_%d [fillcolor=\"#8931a7\", fontcolor=\"white\", label=\"FREE | Index: %d | { <prev> prev: %d | data: PZ | <next> next: %d }\"];\n",
+                i, i, list->prev_arr[i], list->next_arr[i]);
         else if (list->data_arr[i] == POISON)
             fprintf(dot_file, "node_%d [fillcolor=\"%s\", label=\"Index: %d | { <prev> prev: %d | data: " "PZ" "| <next> next: %d } \"];\n",
                 i, "#c8c8c8", i, list->prev_arr[i], list->next_arr[i]);
         else
             fprintf(dot_file, "node_%d [fillcolor=\"%s\", label=\"Index: %d | { <prev> prev: %d | data: %" PRINTING_SPEC "| <next> next: %d }\"];\n",
                 i, "#3fffae", i, list->prev_arr[i], list->data_arr[i], list->next_arr[i]);
-    }
-    //FREE point
-    fprintf(dot_file, "node_free [shape=circle, style=\"filled,rounded\", fillcolor=\"#8931a7\", \
-        fontname=\"Arial\", fontcolor=\"white\", label=\"FREE\"];\n");
-
-    if (list->first_free_point >= 0 && list->first_free_point < list->capacity)
-    {
-        fprintf(dot_file, "node_%d:n -> node_free [style=invis];\n", list->first_free_point);
-        fprintf(dot_file, "node_free -> node_%d [color=\"#c8c8c8\", style=bold, \
-            constraint=false];\n", list->first_free_point);
     }
     //Edges
     for (int i = 0; i < list->capacity; i++)
@@ -260,15 +213,14 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
             fprintf(dot_file, "node_%d -> node_%d [style=invis];\n", i, i + 1);
 
         if (list->next_arr[i] >= 0 && list->next_arr[i] < list->capacity) {
-            fprintf(dot_file, "node_%d:next:s -> node_%d:s" "[tailport=s, headport=s, color=\"%s\", \
+            fprintf(dot_file, "node_%d:s -> node_%d:s" "[color=\"%s\", \
             constraint=false];\n", i, list->next_arr[i], (list->data_arr[i] == POISON && \
             list->data_arr[list->next_arr[i]] == POISON) ? "#c8c8c8" : "#0288d1");
         }
 
-
         if (list->prev_arr[i] >= 0 && list->prev_arr[i] < list->capacity) {
-            fprintf(dot_file, "node_%d:n -> node_%d:prev:n" "[tailport=n, headport=n, color=\"#d32f2f\", \
-            dir=back, style=dashed, constraint=false];\n", list->prev_arr[i], i);
+            fprintf(dot_file, "node_%d:n -> node_%d:n [color=\"#d32f2f\", style=dashed, dir=back, constraint=false];\n",
+                list->prev_arr[i], i);
         }
     }
     fprintf(dot_file, "\n");
@@ -279,47 +231,33 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
     return DL_LIST_ERR_OK;
 }
 
-DlListErrors DlListGetIndex(dl_list_t* list, int node, int* index)
-{
-    VERIFY_NULL_POINTER(list);
-    VERIFY_NULL_POINTER(index);
-    if (node < 0 || node >= list->num_of_real_elems) return DL_LIST_ERR_INDEX_OUT_OF_RANGE;
-    int curr_index = 0;
-    for (int i = 0; i <= node; i++)
-    {
-        curr_index = list->next_arr[curr_index];
-    }
-    *index = curr_index;
-    return DL_LIST_ERR_OK;
-}
-
-DlListErrors DlListPushByIterator(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t elem)
+DlListErrors DlListPushByIterator(dl_list_t* list, dl_list_iterator_t* index, dl_list_elem_t elem)
 {
     VERIFY_NULL_POINTER(list);
     VERIFY_ERROR(DlListVerify(list));
-    int phys_index_before = 0;
-    if (index.node == 0) phys_index_before = 0;
-    else VERIFY_ERROR(DlListGetIndex(list, index.node - 1, &phys_index_before));
 
-    VERIFY_ERROR(DlListPushAfterPhys(list, phys_index_before, elem));
+    if (index->node < 0 || index->node >= list->capacity) return DL_LIST_ERR_INVALID_ITERATOR;
+
+    VERIFY_ERROR(DlListPushAfterPhys(list, list->prev_arr[index->node], elem));
+    index->node = list->prev_arr[index->node];
     VERIFY_ERROR(DlListVerify(list));
     return DL_LIST_ERR_OK;
 }
 
-DlListErrors DlListPopByIterator(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t* elem)
+DlListErrors DlListPopByIterator(dl_list_t* list, dl_list_iterator_t* index, dl_list_elem_t* elem)
 {
     VERIFY_NULL_POINTER(list);
     VERIFY_ERROR(DlListVerify(list));
     VERIFY_NULL_POINTER(elem);
 
-    if (list->num_of_real_elems == 0) return DL_LIST_ERR_INDEX_OUT_OF_RANGE;
-    if (index.node < 0 || index.node >= list->num_of_real_elems) return DL_LIST_ERR_INDEX_OUT_OF_RANGE;
+    if (list->num_of_real_elems == 0) return DL_LIST_ERR_EMPTY_LIST;
+    if (index->node < 0 || index->node >= list->capacity) return DL_LIST_ERR_INVALID_ITERATOR;
+    if (list->data_arr[index->node] == POISON) return DL_LIST_ERR_INVALID_ITERATOR;
 
-    int phys_index_before = 0;
-    if (index.node == 0) phys_index_before = 0;
-    else VERIFY_ERROR(DlListGetIndex(list, index.node - 1, &phys_index_before));
+    int next_node = list->next_arr[index->node];
+    VERIFY_ERROR(DlListPopAfterPhys(list, list->prev_arr[index->node], elem));
+    index->node = next_node;
 
-    VERIFY_ERROR(DlListPopAfterPhys(list, phys_index_before, elem));
     VERIFY_ERROR(DlListVerify(list));
     return DL_LIST_ERR_OK;
 }
@@ -379,6 +317,7 @@ DlListErrors DlListIteratorNext(dl_list_t* list, dl_list_iterator_t index, dl_li
 
     return DL_LIST_ERR_OK;
 }
+
 DlListErrors DlListIteratorPrev(dl_list_t* list, dl_list_iterator_t index, dl_list_iterator_t* index_prev)
 {
     VERIFY_ERROR(DlListVerify(list));
@@ -388,6 +327,53 @@ DlListErrors DlListIteratorPrev(dl_list_t* list, dl_list_iterator_t index, dl_li
     if (index.node == 0) return DL_LIST_ERR_INDEX_OUT_OF_RANGE;
 
     index_prev->node = list->prev_arr[index.node];
+
+    return DL_LIST_ERR_OK;
+}
+
+DlListErrors DlListIteratorInc(dl_list_t* list, dl_list_iterator_t* index)
+{
+    VERIFY_ERROR(DlListVerify(list));
+    VERIFY_NULL_POINTER(index);
+
+    dl_list_iterator_t it_end = {};
+    VERIFY_ERROR(DlListIteratorEnd(list, &it_end));
+    if (index->node >= list->capacity || index->node < 0) return DL_LIST_ERR_INVALID_ITERATOR;
+    if (index->node == it_end.node) return DL_LIST_ERR_END_OF_LIST;
+    if (list->data_arr[index->node] == POISON) return DL_LIST_ERR_INVALID_ITERATOR;
+    index->node = list->next_arr[index->node];
+    return DL_LIST_ERR_OK;
+}
+
+DlListErrors DlListIteratorDec(dl_list_t* list, dl_list_iterator_t* index)
+{
+    VERIFY_ERROR(DlListVerify(list));
+    VERIFY_NULL_POINTER(index);
+
+    dl_list_iterator_t it_begin = {};
+    dl_list_iterator_t it_end = {};
+    VERIFY_ERROR(DlListIteratorBegin(list, &it_begin));
+    VERIFY_ERROR(DlListIteratorEnd(list, &it_end));
+    if (index->node > list->capacity || index->node < 0) return DL_LIST_ERR_INVALID_ITERATOR;
+    if (index->node == it_begin.node) return DL_LIST_ERR_BEGINNING_OF_LIST;
+    if (index->node != it_end.node && list->data_arr[index->node] == POISON) return DL_LIST_ERR_INVALID_ITERATOR;
+    index->node = list->prev_arr[index->node];
+    return DL_LIST_ERR_OK;
+}
+
+DlListErrors DlListIteratorMoveTo(dl_list_t* list, dl_list_iterator_t* index, int position)
+{
+    VERIFY_ERROR(DlListVerify(list));
+    VERIFY_NULL_POINTER(index);
+
+    dl_list_iterator_t it_begin = {};
+    VERIFY_ERROR(DlListIteratorBegin(list, &it_begin));
+
+    if (index->node >= list->capacity || index->node < 0) return DL_LIST_ERR_INVALID_ITERATOR;
+    if (position > list->num_of_real_elems || position < 0) return DL_LIST_ERR_INDEX_OUT_OF_RANGE;
+
+    index->node = it_begin.node;
+    for (int curr_pos = 0; curr_pos < position; curr_pos++) index->node = list->next_arr[index->node];
 
     return DL_LIST_ERR_OK;
 }

@@ -28,6 +28,9 @@ enum DlListErrors
     DL_LIST_ERR_EMPTY_LIST,
     DL_LIST_ERR_POP_FROM_EMPTY_LIST,
     DL_LIST_ERR_INVALID_INDEX,
+    DL_LIST_ERR_INVALID_ITERATOR,
+    DL_LIST_ERR_END_OF_LIST,
+    DL_LIST_ERR_BEGINNING_OF_LIST,
     DL_LIST_ERR_POP_FICTIVE_ELEM,
     DL_LIST_ERR_FILE_NOT_OPENED,
     DL_LIST_ERR_INDEX_OUT_OF_RANGE,
@@ -53,3 +56,23 @@ struct dl_list_iterator_t
 
 const int MAX_CAPACITY = 256;
 const dl_list_elem_t POISON = 0xBEDA;
+
+DlListErrors DlListInit(dl_list_t* list, int start_num_of_elems);
+DlListErrors DlListVerify(dl_list_t* list);
+DlListErrors DlListDump(dl_list_t* list);
+DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename);
+DlListErrors DlListRemove(dl_list_t* list);
+
+
+DlListErrors DlListPushByIterator(dl_list_t* list, dl_list_iterator_t* index, dl_list_elem_t elem);
+DlListErrors DlListPopByIterator(dl_list_t* list, dl_list_iterator_t* index, dl_list_elem_t* elem);
+DlListErrors DlListInitIterator(dl_list_t* list, dl_list_iterator_t* index);
+DlListErrors DlListIteratorGetItem(dl_list_t* list, dl_list_iterator_t index, dl_list_elem_t* elem);
+DlListErrors DlListIteratorBegin(dl_list_t* list, dl_list_iterator_t* index);
+DlListErrors DlListIteratorEnd(dl_list_t* list, dl_list_iterator_t* index);
+DlListErrors DlListIteratorNext(dl_list_t* list, dl_list_iterator_t index, dl_list_iterator_t* index_next);
+DlListErrors DlListIteratorPrev(dl_list_t* list, dl_list_iterator_t index, dl_list_iterator_t* index_prev);
+DlListErrors DlListIteratorInc(dl_list_t* list, dl_list_iterator_t* index);
+DlListErrors DlListIteratorDec(dl_list_t* list, dl_list_iterator_t* index);
+DlListErrors DlListIteratorMoveTo(dl_list_t* list, dl_list_iterator_t* index, int position);
+
