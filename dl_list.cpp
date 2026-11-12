@@ -12,6 +12,8 @@
 
 DlListErrors DlListPushAfterPhys(dl_list_t* list, int node, dl_list_elem_t elem);
 DlListErrors DlListPopAfterPhys(dl_list_t* list, int node, dl_list_elem_t* elem);
+DlListErrors DlListDumpToFile(dl_list_t* list, FILE* dump_file);
+int DlListRunGraphviz(const char* dot_filename, const char* svg_filename);
 
 DlListErrors DlListInit(dl_list_t* list, int start_capacity)
 {
@@ -113,36 +115,45 @@ DlListErrors DlListVerify(dl_list_t* list)
 
     return DL_LIST_ERR_OK;
 }
-
 DlListErrors DlListDump(dl_list_t* list)
 {
-    printf("DL List dump:\n");
-    if (list == NULL) {printf("List's pointer is NULL\n"); return DL_LIST_ERR_NULL_POINTER;}
+    VERIFY_ERROR(DlListVerify(list));
+    VERIFY_ERROR(DlListDumpToFile(list, stdout));
 
-    printf("List's <%s> = %d, <%s> = %d, <%s> = %d\n", $(list->capacity), list->capacity, \
-    $(list->num_of_real_elems), list->num_of_real_elems, $(list->first_free_point), list->first_free_point);
+    return DL_LIST_ERR_OK;
+}
+
+DlListErrors DlListDumpToFile(dl_list_t* list, FILE* dump_file)
+{
+    VERIFY_NULL_POINTER(dump_file);
+
+    fprintf(dump_file, "DL List dump:\n");
+    if (list == NULL) {fprintf(dump_file, "List's pointer is NULL\n"); return DL_LIST_ERR_NULL_POINTER;}
+
+    fprintf(dump_file, "List's [%s] = %d, [%s] = %d, [%s] = %d\n", $(list->capacity), list->capacity,
+        $(list->num_of_real_elems), list->num_of_real_elems, $(list->first_free_point), list->first_free_point);
 
     for (int i = 0; i < list->capacity; i++)
-        printf("%6d", i);
-    printf("\n");
+        fprintf(dump_file, "%6d", i);
+    fprintf(dump_file, "\n");
 
     for (int i = 0; i < list->capacity; i++)
     {
-        if (list->data_arr[i] == POISON) printf("%6s", "PZ");
-        else printf("%6" PRINTING_SPEC, list->data_arr[i]);
+        if (list->data_arr[i] == POISON) fprintf(dump_file, "%6s", "PZ");
+        else fprintf(dump_file, "%6" PRINTING_SPEC, list->data_arr[i]);
     }
-    printf("\n");
+    fprintf(dump_file, "\n");
     for (int i = 0; i < list->capacity; i++)
     {
-        printf("%6d", list->next_arr[i]);
+        fprintf(dump_file, "%6d", list->next_arr[i]);
     }
-    printf("\n");
+    fprintf(dump_file, "\n");
     for (int i = 0; i < list->capacity; i++)
     {
-        printf("%6d", list->prev_arr[i]);
+        fprintf(dump_file, "%6d", list->prev_arr[i]);
     }
-    printf("\n");
-
+    fprintf(dump_file, "\n");
+    fprintf(dump_file, "\n");
     return DL_LIST_ERR_OK;
 }
 
@@ -182,7 +193,7 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
     if (list == NULL) {fprintf(stderr, "Error: got NULL list pointer\n"); return DL_LIST_ERR_NULL_POINTER;}
     if (dot_filename == NULL) {fprintf(stderr, "Error: program filename crashed\n"); return DL_LIST_ERR_FILE_NOT_OPENED;}
     FILE* dot_file = fopen(dot_filename, "w");
-    if (dot_file == NULL) {fprintf(stderr, "Error: no such file <%s>\n", dot_filename); return DL_LIST_ERR_FILE_NOT_OPENED;}
+    if (dot_file == NULL) {fprintf(stderr, "Error: no such file [%s]\n", dot_filename); return DL_LIST_ERR_FILE_NOT_OPENED;}
     //Head
     fprintf(dot_file, "digraph List_Dump\n{\n");
     fprintf(dot_file, "rankdir=LR;\n");
@@ -230,6 +241,53 @@ DlListErrors DlListGraphDump(dl_list_t* list, const char* dot_filename)
     fclose(dot_file);
     return DL_LIST_ERR_OK;
 }
+
+DlListErrors DlListHTMLDump(dl_list_t* list, const char* html_filename)
+{
+    if (list == NULL) {fprintf(stderr, "Error: got NULL list pointer\n"); return DL_LIST_ERR_NULL_POINTER;}
+    if (html_filename == NULL) {fprintf(stderr, "Error: program filename crashed\n"); return DL_LIST_ERR_FILE_NOT_OPENED;}
+    FILE* html_file = fopen(html_filename, "a");
+    if (html_file == NULL) {fprintf(stderr, "Error: no such file [%s]\n", html_filename); return DL_LIST_ERR_FILE_NOT_OPENED;}
+
+    fprintf(html_file, "<pre>\n");
+    DlListErrors err = DlListDumpToFile(list, html_file);
+    if (err != DL_LIST_ERR_OK) {fclose(html_file); return err;}
+    fprintf(html_file, "</pre>\n");
+
+    err = DlListGraphDump(list, "temp.txt");
+    if (err != DL_LIST_ERR_OK) {fclose(html_file); return err;}
+    if (DlListRunGraphviz("temp.txt", "temp.svg") != 0) return ERR_GRAPHVIZ_FAILED;
+
+    FILE* svg_file = fopen("temp.svg", "r");
+    if (svg_file != NULL)
+    {
+        int sym = 0;
+        while ((sym = fgetc(svg_file)) != EOF) fputc(sym, html_file);
+    }
+    fclose(svg_file);
+    remove("temp.svg");
+
+
+    fclose(html_file);
+    return DL_LIST_ERR_OK;
+
+}
+
+int DlListRunGraphviz(const char* dot_filename, const char* svg_filename)
+{
+    VERIFY_NULL_POINTER(dot_filename);
+    VERIFY_NULL_POINTER(svg_filename);
+
+    char cmd[SIZE_OF_CMD] = {0};
+
+    int len = snprintf(cmd, sizeof(cmd), "dot -Tsvg \"%s\" -o \"%s\"", dot_filename, svg_filename);
+    if (len < 0 || (size_t)len >= sizeof(cmd)) {fprintf(stderr, "Error: command string is too long\n"); return -1;}
+    int status = system(cmd);
+    if (status != 0) {fprintf(stderr, "Error: failed to execute <%s>, code: %d\n", cmd, status); return status;}
+
+    return 0;
+}
+
 
 DlListErrors DlListPushByIterator(dl_list_t* list, dl_list_iterator_t* index, dl_list_elem_t elem)
 {
